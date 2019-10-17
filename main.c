@@ -34,6 +34,7 @@
 #include <util/delay.h>
 #include <avr/interrupt.h>
 #include <stdlib.h>
+#include <avr/eeprom.h>
 #include "speed.h"
 #include "sensors.h"
 #include "controller.h"
@@ -90,11 +91,13 @@ void timer0_init_ts(){
 volatile ModuleValues_t ComValues = {
 	//MOTOR VARIABLES
 	.motor_enabled = 0,
+	.board_powered = 0,
 	.f32_motor_current = 0.0,
 	.f32_batt_current = 0.0,
 	.f32_batt_volt = 0.0,
 	.f32_energy = 0.0,
 	.u8_motor_temp = 0,
+	.debug_speed = 0,
 	.u16_car_speed = 0,
 	.u16_motor_speed = 0,
 	.u8_accel_cmd = 0, //in amps
@@ -109,9 +112,12 @@ volatile ModuleValues_t ComValues = {
 	.pwtrain_type = BELT,
 	
 	//ACTUATOR VARIABLES
-	.uart_debug = 0,
+	.uart_debug_1 = 0,
+	.uart_debug_2 = 0,
+	.uart_debug_3 = 0,
 	.position_neutral = 100,
 	.position_gear_1 = 200,
+	.position_gear_2 = 400,
 	.clutch_enabled = 1,
 	.actuator_in_position = 0,
 	.f32_actuator_feedback = 0.0,
@@ -124,18 +130,6 @@ volatile ModuleValues_t ComValues = {
 };
 
 
-/*
-//ACTUATOR VARIABLES
-float f32_actuator_feedback;
-uint8_t u8_actuator_duty_cycle;
-uint16_t position_neutral;
-uint16_t position_gear_1;
-uint16_t position_gear_2;
-ClutchState_t gear_status;
-ClutchState_t gear_required;
-ActuatorDirection actuator_direction;
-*/
-
 int main(void)	
 {
 	cli();
@@ -147,7 +141,8 @@ int main(void)
 	timer0_init_ts();
 	speed_init();
 	spi_init(DIV_4); // clk at clkio/4 = 2MHz init of SPI for external ADC device
-	//actuator_init(&ComValues);
+	actuator_init(&ComValues);
+	init_com_led_batt_led();
 	
 	//uart_set_FrameFormat(USART_8BIT_DATA|USART_1STOP_BIT|USART_NO_PARITY|USART_ASYNC_MODE); // default settings
 	uart_init(BAUD_CALC(500000)); // 8n1 transmission is set as default
@@ -192,7 +187,8 @@ int main(void)
 ISR(TIMER0_COMP_vect){ // every 5ms
 	handle_DWC(&ComValues); // sets accel and brake cmds to 0 when shell's telemetry system is triggered
 	state_handler(&ComValues); // manages the state machine
-	actuator_p_controller(&ComValues);// manages the actuator's state machine for clutch position 
+	actuator_p_controller(&ComValues); // manages the actuator's state machine for clutch position 
+	actuator_update(&ComValues); //Update information from local actuator structure to main program 
 	
 	//UART TIMER: MUST MAKE CODE TO DISABLE UART COMS AFTER CERTAIN NUMBER OF TIME?
 	
@@ -227,6 +223,7 @@ ISR(TIMER0_COMP_vect){ // every 5ms
 	if (systic_counter_slow == 100) // every 0.5s 
 	{
 		manage_LEDs(ComValues); //UM LED according to motor state
+		manage_pwr_train_switch(&ComValues);
 		systic_counter_slow = 0;
 		} else {
 		systic_counter_slow ++;
@@ -257,8 +254,8 @@ ISR(TIMER1_COMPA_vect){// every 1ms
 	ADDED CODE FOR MOTOR_CONTROL_V2.0
 	CH0 - S_B_V, BATTERY VOLTAGE
 	CH1 - S_B_I, BATTERY CURRENT
-	CH2 - X, N/C
-	CH3 - X, N/C
+	CH2 - S_M_GEAR, MECH SWITCH TRANSMISSION
+	CH3 - S_M_BELT, MECH SWITCH TRANSMISSION
 	CH4 - S_M_T, MOTOR TEMPERATURE
 	CH5 - S_S_01, SPARE
 	CH6 - S_A_S0, ACTUATOR POSITION FEEDBACK
@@ -294,18 +291,20 @@ ISR(TIMER1_COMPA_vect){// every 1ms
 	
 	if (u8_SPI_count == 3)
 	{
-		//CH3 - X, N/C
-		//SPI_handler_3(&ComValues.u8_motor_temp);
+		//CH3 - S_M_BELT, MECH SWITCH TRANSMISSION
+		//***---***
+		SPI_handler_2(&ComValues.pwtrain_type, &ComValues.uart_debug_2);
 		u8_SPI_count  ++ ;
 	}
 	
 	if (u8_SPI_count == 2)
 	{
-		//CH2 - X, N/C
-		//SPI_handler_2(&ComValues.u8_motor_temp);
+		//CH2 - S_M_GEAR, MECH SWITCH TRANSMISSION
+		//***---***
+		SPI_handler_3(&ComValues.pwtrain_type, &ComValues.uart_debug_1);
 		u8_SPI_count ++ ;
 	}
-	
+	 
 	if (u8_SPI_count == 1)
 	{
 		//CH1 - S_B_I, BATTERY CURRENT
@@ -322,7 +321,7 @@ ISR(TIMER1_COMPA_vect){// every 1ms
 }
 
 
-ISR(INT5_vect) //interrupt on rising front of the speed sensor (each time a magnet passes in front of sensor)
+ISR(INT1_vect) //interrupt on rising front of the speed sensor (each time a magnet passes in front of sensor)
 {
 	//rgbled_toggle(LED_GREEN); //uncomment to test speed sensor mounting. should blink periodically. 
 	//remember to comment the "manage_LED" function

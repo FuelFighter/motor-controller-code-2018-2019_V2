@@ -14,15 +14,19 @@
 
 //////////////////////// DEFINES TO CHANGE BEFORE PROGRAMMING /////////////////
 //chose the correct PCB connected to the UM you program
-#define MC_BOARD_1
-// MC_BOARD_2
+//#define MC_BOARD_1
+#define MC_BOARD_2
 // MC_BOARD_3
 
 // for the speed, choose the sensor you are using, 
 //and the number of magnets (they need to be precisely mounted at equal distances around the disk)
+
+// SPEED_SENSOR_HALL
 #define SPEED_SENSOR_HALL
+#define NUM_MAGNETS 2
+
 // SPEED_SENSOR_REED
-#define NUM_MAGNETS 1
+//#define NUM_MAGNETS 1
 
 //choose the motor you are using
 #define MOTOR_RE50_36V
@@ -31,7 +35,7 @@
 
 // According to the position in the car (right or left) the MC has to be selected here (1 = right, 2 = left)
 // the actuator board has to be programmed accordingly (with the right CAN IDs, see CAN bus frame description on the drive)
-#define MOTOR_CONTROLLER_1
+#define MOTOR_CONTROLLER_2
 // MOTOR_CONTROLLER_2
 
 //Enabling the UART communication 

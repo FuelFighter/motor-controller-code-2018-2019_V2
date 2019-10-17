@@ -17,9 +17,9 @@
 //CLUTCH & ACTUATOR
 
 typedef enum {
-	STATIONARY,
-	EXTEND,
-	RETRACT
+	STATIONARY = 0,
+	EXTEND = 1,
+	RETRACT = 2
 } ActuatorDirection;
 
 typedef enum
@@ -46,8 +46,9 @@ typedef enum
 
 typedef enum
 {
-	BELT,
-	GEAR
+	BELT = 0,
+	GEAR = 1,
+	NOT_SELECTED = 2
 }PowertrainType_t;
 
 typedef enum
@@ -59,11 +60,13 @@ typedef enum
 typedef struct{
 	//MOTOR VARIABLES
 	int motor_enabled;
+	int board_powered;
 	float f32_motor_current;
 	float f32_batt_current;
 	float f32_batt_volt;
 	float f32_energy ;
 	uint8_t u8_motor_temp;
+	uint16_t debug_speed;
 	uint16_t u16_car_speed;
 	uint16_t u16_motor_speed;
 	uint8_t u8_accel_cmd;
@@ -80,11 +83,13 @@ typedef struct{
 	//ACTUATOR VARIABLES
 	int clutch_enabled;
 	int actuator_in_position;
-	float uart_debug;
+	float uart_debug_1;
+	float uart_debug_2;
+	float uart_debug_3;
 	float f32_actuator_feedback;
 	uint8_t u8_actuator_duty_cycle;
 	int16_t actuator_position_error;
-	uint16_t position_uart_instruction;
+	int16_t position_uart_instruction;
 	uint16_t position_neutral;
 	uint16_t position_gear_1;
 	uint16_t position_gear_2;

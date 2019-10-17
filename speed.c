@@ -29,8 +29,8 @@ static uint16_t u16_speed_array [4];
 void speed_init()
 {
 	//pin
-	DDRE &= ~(1<<PD1); //define pin as input
-	PORTE &= ~(1<<PD1); //no pull-up
+	DDRD &= ~(1<<PD1); //define pin as input
+	PORTD &= ~(1<<PD1); //no pull-up
 	//int
 	EIMSK &= ~(1<<INT1) ; // interrupt disable to prevent interrupt raise during init
 	

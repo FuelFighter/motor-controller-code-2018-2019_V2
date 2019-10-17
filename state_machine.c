@@ -13,66 +13,68 @@
 
 #define MAX_VOLT 55.0
 #define MIN_VOLT 15.0
-#define MAX_AMP 25.0
+#define MAX_AMP 10000 //25.0
 #define MAX_TEMP 100
 
 static uint8_t b_major_fault = 0;
-static uint8_t fault_count = 0;
-static uint16_t fault_timeout = 0;
-static uint8_t fault_clear_count = 0;
+//static uint8_t fault_count = 0;
+//static uint16_t fault_timeout = 0;
+//static uint8_t fault_clear_count = 0;
 static uint8_t starting_engage = 0;
-static uint8_t engage_count = 0;
-uint16_t actuator_target_position = 0;
+//static uint8_t engage_count = 0;
+uint16_t actuator_target_position = 0; 
 
 void state_handler(volatile ModuleValues_t * vals)
-{
-	/*
-	uint8_t b_board_powered = (vals->f32_batt_volt >= MIN_VOLT  && vals->f32_batt_volt < 100.0);
+{	
+	//THIS NEEDS TO BE SORTED THE FUCK OUT!!!!
+	// The SAFETY code below needs to be reimplemented and tested before use! I did not have the possibiliy to test in the car until later, so I commented the code. See the code in  (Motor-drive-2018) in GitHub as a reference to fix it. Sorry to the poor fucker who has to deal with this hahahahaha.
 	
-	if (b_board_powered && (vals->f32_motor_current >= MAX_AMP|| vals->f32_motor_current <= -MAX_AMP || vals->f32_batt_volt > MAX_VOLT))
+	uint8_t b_board_powered = 1;
+	/* 
+	if ((vals->f32_batt_volt >= 25) && (vals->f32_batt_volt < 55))
 	{
-		fault_count ++ ;
-		if (fault_count == 3) // a fault is cleared after some time and a maximum of three times. If the fault occurs more than three times,
-		//the board needs to be reset. there is a real problem to be investigated.
+		b_board_powered = 1;
+		vals->board_powered = 1;
+	}
+	else
+	{
+		b_board_powered = 0;
+		vals->board_powered = 0;
+	}
+
+	//vals->f32_motor_current >= MAX_AMP || vals->f32_motor_current <= -MAX_AMP || vals->f32_batt_volt > 55 || vals->f32_batt_volt < 30 || " && (vals->pwtrain_type == NOT_SELECTED) "
+	if (((b_board_powered == 1) && (vals->pwtrain_type == NOT_SELECTED)))
+	{
+		if (fault_count < 20)
 		{
-			b_major_fault = 1;
-			fault_timeout = 600 ;
-			fault_clear_count ++;
+				fault_count ++ ;
 		}
 	}
+	
+	if (fault_count > 10) // a fault is cleared after some time and a maximum of three times. If the fault occurs more than three times,
+							//the board needs to be reset. there is a real problem to be investigated.
+	{
+		b_major_fault = 1;
+		fault_timeout = 600; 
+	}
+	
 	if (fault_timeout > 0)
 	{
 		fault_timeout -- ;
-		}else if(b_major_fault && fault_clear_count < 3){
+	}
+	
+	if ((b_major_fault) && (fault_timeout <= 3))
+	{
 		b_major_fault = 0;
-	} */
+		fault_count = 0;
+	}
+	*/
 	
 	//uart is not spamming the UM so must reload watchdog timer here
 	if(vals->message_mode == UART){
 		vals->u16_watchdog_can = WATCHDOG_CAN_RELOAD_VALUE;
 		vals->u16_watchdog_throttle = WATCHDOG_THROTTLE_RELOAD_VALUE;
 	} 
-	
-	//ATTENTION: "TAKEN OUT": (vals->f32_batt_volt >= MIN_VOLT  && vals->f32_batt_volt < 100.0);
-	uint8_t b_board_powered = 1;
-	//ATTENTION: "TAKEN OUT": (vals->f32_motor_current >= MAX_AMP|| vals->f32_motor_current <= -MAX_AMP || && (vals->f32_batt_volt > MAX_VOLT)
-	if (!b_board_powered)
-	{
-		fault_count ++ ;
-		if (fault_count == 3) // a fault is cleared after some time and a maximum of three times. If the fault occurs more than three times, 
-		//the board needs to be reset. there is a real problem to be investigated.
-		{
-			b_major_fault = 1;
-			fault_timeout = 600 ;
-			fault_clear_count ++;
-		}
-	}
-	if (fault_timeout > 0)
-	{
-		fault_timeout -- ;
-	}else if(b_major_fault && fault_clear_count < 3){
-		b_major_fault = 0;
-	}
 
 	switch(vals->motor_status)
 	{
@@ -126,6 +128,7 @@ void state_handler(volatile ModuleValues_t * vals)
 					vals->motor_status = ENGAGE;
 					starting_engage = 1;
 				}
+				
 				drivers(0); //disable
 				vals->gear_required = NEUTRAL ;
 				reset_I();
@@ -149,6 +152,7 @@ void state_handler(volatile ModuleValues_t * vals)
 			drivers(1);
 			
 			//*****************--------------------------------TESTING START--------------------------*****************
+			/*
 			switch(vals->gear_required){
 				case NEUTRAL:
 				actuator_target_position = vals->position_neutral;
@@ -176,6 +180,7 @@ void state_handler(volatile ModuleValues_t * vals)
 			}
 			engage_count = 0;
 			
+			*/
 			//*****************--------------------------------TESTING END--------------------------*****************
 			
 			//transition 9, GEAR
@@ -262,10 +267,11 @@ void state_handler(volatile ModuleValues_t * vals)
 		// transition 2
 		vals->motor_status = OFF;
 	}
-	/*ATTENTION: "TAKEN OUT": COMMENTED OUT
-	if (b_major_fault || vals->u8_motor_temp >= MAX_TEMP) //over current, over voltage, over temp
+	
+	//ATTENTION: "TAKEN OUT": COMMENTED OUT " || vals->u8_motor_temp >= MAX_TEMP) "
+	if (b_major_fault) //over current, over voltage, over temp
 	{
 		//transition 3
 		vals->motor_status = ERR;
-	}*/
+	}
 }
